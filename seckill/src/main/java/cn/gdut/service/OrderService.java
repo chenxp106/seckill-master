@@ -7,4 +7,5 @@ import cn.gdut.vo.GoodsVo;
 public interface OrderService {
 
     public OrderInfo createOrder(SeckillUser user, GoodsVo goods);
+
 }
