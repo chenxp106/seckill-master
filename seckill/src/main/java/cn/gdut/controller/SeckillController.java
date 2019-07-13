@@ -1,18 +1,26 @@
 package cn.gdut.controller;
 
 import cn.gdut.controller.result.CodeMsg;
+import cn.gdut.domain.OrderInfo;
 import cn.gdut.domain.SeckillUser;
 import cn.gdut.service.GoodsService;
+import cn.gdut.service.SeckillService;
 import cn.gdut.vo.GoodsVo;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
+@Controller
+@RequestMapping("/miaosha")
 public class SeckillController implements InitializingBean {
+
+    @Autowired
+    SeckillService seckillService;
 
 
     @Autowired
@@ -38,7 +46,9 @@ public class SeckillController implements InitializingBean {
         }
 
         //完成秒杀动作
-
+        OrderInfo orderInfo = seckillService.seckill(user,good);
+        model.addAttribute("orderInfo",orderInfo);
+        model.addAttribute("goods",good);
         return "order_detail";
     }
 

@@ -31,8 +31,8 @@ public class GoodsServiceImpl implements GoodsService {
     public boolean reduceStock(GoodsVo goodsVo) {
         SeckillGoods seckillGoods = new SeckillGoods();
         seckillGoods.setGoodsId(goodsVo.getId()); //秒杀商品的id和商品的id是一样的
-        int ret = goodsDao.
-        return false;
+        int ret = goodsDao.reduceStack(seckillGoods);
+        return ret>0;
     }
 
 

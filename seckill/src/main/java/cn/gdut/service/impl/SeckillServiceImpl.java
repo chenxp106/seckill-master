@@ -3,6 +3,7 @@ package cn.gdut.service.impl;
 import cn.gdut.domain.OrderInfo;
 import cn.gdut.domain.SeckillUser;
 import cn.gdut.service.GoodsService;
+import cn.gdut.service.OrderService;
 import cn.gdut.service.SeckillService;
 import cn.gdut.vo.GoodsVo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,9 @@ public class SeckillServiceImpl implements SeckillService {
 
     @Autowired
     GoodsService goodsService;
+
+    @Autowired
+    OrderService orderService;
 
     /**
      * 秒杀操作
@@ -32,6 +36,6 @@ public class SeckillServiceImpl implements SeckillService {
 
         }
         //2 生成订单
-        return null;
+        return orderService.createOrder(user,goodsVo);
     }
 }
