@@ -29,6 +29,7 @@ public class SeckillController implements InitializingBean {
     @RequestMapping("/do_miaosha")
     public String doMiaosha(Model model, SeckillUser user, @RequestParam("goodsId") long goodsId){
         model.addAttribute("user",user);
+        System.out.println(user.getId());
 
         //如果用户为空，直接返回登录页面
         if (user == null){

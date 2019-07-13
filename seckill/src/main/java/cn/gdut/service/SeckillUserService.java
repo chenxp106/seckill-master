@@ -8,4 +8,6 @@ import javax.servlet.http.HttpServletResponse;
 public interface SeckillUserService {
 
     public SeckillUser login(HttpServletResponse response,String moble, String password);
+
+    public SeckillUser getSeckillUserByToken(HttpServletResponse response,String token);
 }

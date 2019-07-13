@@ -40,7 +40,8 @@ public class OrderServiceImpl implements OrderService {
         orderInfo.setUserId(user.getId());
 
         //将订单信息插入到order_info表中
-        long re = orderDao.insert(orderInfo);
+        long orderId = orderDao.insert(orderInfo);
+        System.out.println("orderId"+orderId);
 
         seckillOrder.setGoodsId(goods.getId());
         seckillOrder.setOrderId(orderInfo.getId());
