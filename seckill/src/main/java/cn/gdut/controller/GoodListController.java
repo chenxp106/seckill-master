@@ -2,8 +2,11 @@ package cn.gdut.controller;
 
 
 import cn.gdut.domain.SeckillUser;
+import cn.gdut.redis.GoodsKeyPrefix;
+import cn.gdut.redis.RedisService;
 import cn.gdut.service.GoodsService;
 import cn.gdut.vo.GoodsVo;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,6 +26,9 @@ import java.util.List;
 public class GoodListController {
 
     @Autowired
+    RedisService redisService;
+
+    @Autowired
     ThymeleafViewResolver thymeleafViewResolver;
 
     @Autowired
@@ -37,16 +43,31 @@ public class GoodListController {
 
         model.addAttribute("user",user);
 
-        //强查询到的商品渲染到页面中
+        String html = null;
+
+        //1，从redis缓存中获取html
+        html = redisService.get(GoodsKeyPrefix.goodsListKeyPrefix,"",String.class);
+        if (!StringUtils.isEmpty(html)){
+            return html;
+        }
+
+        //2、如果不在redis中，则需要手动渲染，从数据库中获取数据
+
+
+        //将查询到的商品渲染到页面中
         List<GoodsVo> goodsVoList = goodsService.listGoodsVo();
         model.addAttribute("goodsList",goodsVoList);
 
         //渲染html
         WebContext webContext = new WebContext(request,response,request.getServletContext(),request.getLocale(),model.asMap());
-        String html = null;
 
+        //第一个参数为渲染的html文件名，第二个参数为web相应的上下文
         html = thymeleafViewResolver.getTemplateEngine().process("goods_list",webContext);
 
+        //如果html页面不为空，则将页面缓存在redis中
+        if (!StringUtils.isEmpty(html)){
+            redisService.set(GoodsKeyPrefix.goodsListKeyPrefix,"",html);
+        }
         return html;
     }
 
@@ -70,6 +91,11 @@ public class GoodListController {
             @PathVariable("goodsId") long goodsId
     ){
         //从redis中获取详情数据，
+        String html = null;
+        html = redisService.get(GoodsKeyPrefix.goodsDetailKeyPrefix,"goodid",String.class);
+        if (!StringUtils.isEmpty(html)){
+            return html;
+        }
 
         //如果没有缓存，则需要手动渲染页面
         model.addAttribute("user",seckillUser);
@@ -107,9 +133,13 @@ public class GoodListController {
         model.addAttribute("remainSeconds",remainSecond);
 
         //渲染html
-        String html = null;
         WebContext webContext = new WebContext(request,response,request.getServletContext(),request.getLocale(),model.asMap());
         html = thymeleafViewResolver.getTemplateEngine().process("goods_detail",webContext);
+
+        //如果html页面不为空，则将html存到redis中
+        if (!StringUtils.isEmpty(html)){
+            redisService.set(GoodsKeyPrefix.goodsDetailKeyPrefix,"goodid",html);
+        }
         return html;
     }
 }

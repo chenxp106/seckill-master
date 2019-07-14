@@ -13,38 +13,54 @@ public class RedisService {
     JedisPool jedisPool;
 
     /**
-     * 设置值
-     * @param key key
-     * @param value value
-     * @param <T> t
+     *
+     * @param prefix 前缀
+     * @param key 键
+     * @param value 值
+     * @param <T> 返回类型
      * @return T
      */
-    public <T> boolean set(String key,T value){
+    public <T> boolean set(KeyPrefix prefix,String key,T value){
         Jedis jedis = null;
         try {
             jedis = jedisPool.getResource();
+
             //将对象转化为json字符串
             String strValue = beanToString(value);
 
             if (strValue == null || strValue.length() == 0){
                 return false;
             }
-            jedis.set(key,strValue);
+
+            //生成真正的存储在redis中的key
+            String realKey = prefix.getPrefix()+key;
+
+            //获取过期的时间
+            int seconds = prefix.expireSeconds();
+
+            if (seconds <= 0){
+                //设置key的过期时间为redis的默认值（由redis的缓存策略控制）
+                jedis.set(realKey,strValue);
+            }
+            else {
+                jedis.setex(realKey,seconds,strValue);
+            }
+            return true;
         }
         finally {
             returnToPool(jedis);
         }
-        return true;
-
     }
 
-    public <T> T get(String key,Class<T> clazz){
+    public <T> T get(KeyPrefix prefix,String key,Class<T> clazz){
         Jedis jedis = null;
 
         try {
             jedis = jedisPool.getResource();
+            //获取真的key
+            String realKey = prefix.getPrefix() + key;
             //获取值
-            String strValue = jedis.get(key);
+            String strValue = jedis.get(realKey);
             //将json字符串转为对象
             T objValue = stringToBean(strValue, clazz);
             return objValue;

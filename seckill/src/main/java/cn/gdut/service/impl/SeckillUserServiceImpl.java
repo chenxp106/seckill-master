@@ -6,6 +6,7 @@ import cn.gdut.dao.SeckillUserDao;
 import cn.gdut.domain.SeckillUser;
 import cn.gdut.exception.GlobalException;
 import cn.gdut.redis.RedisService;
+import cn.gdut.redis.SeckillUserKeyPrefix;
 import cn.gdut.service.SeckillUserService;
 import cn.gdut.util.MD5Util;
 import cn.gdut.util.UUIDUtil;
@@ -28,7 +29,11 @@ public class SeckillUserServiceImpl implements SeckillUserService {
 
     @Override
     public SeckillUser login(HttpServletResponse response,String moble, String password) {
-        SeckillUser seckillUser = seckillUserDao.getById(Long.parseLong(moble));
+
+        //判断手机号码是否存在
+//        SeckillUser seckillUser = seckillUserDao.getById(Long.parseLong(moble));
+        SeckillUser seckillUser = getSeckillUserById(Long.parseLong(moble));
+
         if (seckillUser == null){
             //抛出异常会被全局异常接收，全局异常会将信息传导全局异常处理器
             throw new GlobalException(CodeMsg.MOBILE_NOT_EXIST);
@@ -45,7 +50,7 @@ public class SeckillUserServiceImpl implements SeckillUserService {
         //执行到这里说明登录成功了，生成cookie
         String token = UUIDUtil.uuid();
         //每次访问都会产生一个session存储于redis和反馈给客户端，一个session对于一个user对象
-        redisService.set(token,seckillUser);
+        redisService.set(SeckillUserKeyPrefix.token,token,seckillUser);
         Cookie cookie = new Cookie(Constant.COOKIE_NAME_TOKEN,token);
         //将cookie存放到response中
         cookie.setPath("/");
@@ -60,8 +65,32 @@ public class SeckillUserServiceImpl implements SeckillUserService {
             return null;
         }
 
-        SeckillUser seckillUser = redisService.get(token,SeckillUser.class);
+        SeckillUser seckillUser = redisService.get(SeckillUserKeyPrefix.getSeckillUserById,token,SeckillUser.class);
 
         return seckillUser;
+    }
+
+    /**
+     * 根据id查询秒杀用户的信息
+     * @param id
+     * @return
+     */
+    private SeckillUser getSeckillUserById(Long id){
+        SeckillUser user = null;
+        //从redis中获取用户的数据
+        user = redisService.get(SeckillUserKeyPrefix.getSeckillUserById,""+id,SeckillUser.class);
+        if (user != null){
+            return user;
+        }
+
+        //如果redis中没有用户数据，则将数据存到redis中
+        //先从数据库中获取数据
+        user = seckillUserDao.getById(id);
+        if (user != null){
+            redisService.set(SeckillUserKeyPrefix.getSeckillUserById,""+id,user);
+        }
+
+        return user;
+
     }
 }
