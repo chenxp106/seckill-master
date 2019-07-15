@@ -1,10 +1,12 @@
 package cn.gdut.controller;
 
 
+import cn.gdut.controller.result.Result;
 import cn.gdut.domain.SeckillUser;
 import cn.gdut.redis.GoodsKeyPrefix;
 import cn.gdut.redis.RedisService;
 import cn.gdut.service.GoodsService;
+import cn.gdut.vo.GoodsDetailVo;
 import cn.gdut.vo.GoodsVo;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,7 +74,7 @@ public class GoodListController {
     }
 
     /**
-     *
+     *处理商品详情页（未做页面静态处理）
      * @param response reson
      * @param request  req
      * @param model 页面的域对象
@@ -92,7 +94,7 @@ public class GoodListController {
     ){
         //从redis中获取详情数据，
         String html = null;
-        html = redisService.get(GoodsKeyPrefix.goodsDetailKeyPrefix,"goodid",String.class);
+        html = redisService.get(GoodsKeyPrefix.goodsDetailKeyPrefix,""+goodsId,String.class);
         if (!StringUtils.isEmpty(html)){
             return html;
         }
@@ -138,8 +140,51 @@ public class GoodListController {
 
         //如果html页面不为空，则将html存到redis中
         if (!StringUtils.isEmpty(html)){
-            redisService.set(GoodsKeyPrefix.goodsDetailKeyPrefix,"goodid",html);
+            redisService.set(GoodsKeyPrefix.seckillGoodsStockPrefix,""+goodsId,html);
         }
         return html;
+    }
+
+    @RequestMapping(value = "to_detail_static/{goodsId}")
+    @ResponseBody
+    public Result<GoodsDetailVo> toDetailStatic(SeckillUser user,@PathVariable("goodsId") long goodsId){
+
+        //通过商品id查询数据库
+        GoodsVo goods = goodsService.getGoodsByGoodsId(goodsId);
+
+        //获取商品的秒杀开始与结束时间
+        long startDate = goods.getStartDate().getTime();
+        long endDate = goods.getEndDate().getTime();
+        long now = System.currentTimeMillis();
+
+        //秒杀状态 0： 秒杀未开始  1：秒杀进行中 2：秒杀结束
+        int miaoshaStatus = 0;
+        // 秒杀剩余时间
+        int remainSecond = 0;
+
+        //未开始
+        if (now < startDate){
+            miaoshaStatus = 0;
+            remainSecond = (int)((startDate - now) / 1000);
+        }
+        //秒杀已经结束
+        else if (now > endDate){
+            miaoshaStatus = 2;
+            remainSecond = -1;
+        }
+        //秒杀进行中
+        else {
+            miaoshaStatus = 1;
+            remainSecond =  0;
+        }
+
+        // 服务端封装商品数据直接传递给客户端，而不用绚烂页面
+        GoodsDetailVo goodsDetailVo = new GoodsDetailVo();
+        goodsDetailVo.setGoods(goods);
+        goodsDetailVo.setUser(user);
+        goodsDetailVo.setRemainSeconds(remainSecond);
+        goodsDetailVo.setSeckillStatus(miaoshaStatus);
+
+        return Result.success(goodsDetailVo);
     }
 }

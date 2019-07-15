@@ -51,4 +51,16 @@ public class OrderServiceImpl implements OrderService {
         orderDao.insertSeckillOrder(seckillOrder);
         return orderInfo;
     }
+
+    /**
+     * 根据用户id和goodsid判断用户是否下过订单
+     * @param userId 用户id
+     * @param goodsId 商品id
+     * @return
+     */
+    @Override
+    public SeckillOrder getSeckillOrderByUserAndGoodsId(Long userId, long goodsId) {
+
+        return orderDao.getSeckillOrderByUserAndGoodsId(userId,goodsId);
+    }
 }

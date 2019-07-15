@@ -2,9 +2,7 @@ package cn.gdut.dao;
 
 import cn.gdut.domain.OrderInfo;
 import cn.gdut.domain.SeckillOrder;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.SelectKey;
+import org.apache.ibatis.annotations.*;
 
 @Mapper
 public interface OrderDao {
@@ -17,5 +15,8 @@ public interface OrderDao {
 
     @Insert("INSERT INTO  seckill_order (user_id,order_id,goods_id) VALUES (#{userId},#{orderId},#{goodsId})")
     void insertSeckillOrder(SeckillOrder seckillOrder);
+
+    @Select("SELECT * FROM seckill_order WHERE goods_id = #{goodsId} AND user_id = #{userId}")
+    SeckillOrder getSeckillOrderByUserAndGoodsId(@Param("userId") Long userId, @Param("goodsId") long goodsId);
 
 }
