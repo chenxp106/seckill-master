@@ -1,26 +1,29 @@
 package cn.gdut.controller;
 
 
+import cn.gdut.controller.result.CodeMsg;
 import cn.gdut.controller.result.Result;
 import cn.gdut.domain.SeckillUser;
 import cn.gdut.redis.GoodsKeyPrefix;
 import cn.gdut.redis.RedisService;
 import cn.gdut.service.GoodsService;
+import cn.gdut.service.SeckillService;
 import cn.gdut.vo.GoodsDetailVo;
 import cn.gdut.vo.GoodsVo;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.thymeleaf.context.WebContext;
 import org.thymeleaf.spring5.view.ThymeleafViewResolver;
 
+import javax.imageio.ImageIO;
+import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.List;
 
 @Controller
@@ -35,6 +38,9 @@ public class GoodListController {
 
     @Autowired
     private GoodsService goodsService;
+
+    @Autowired
+    SeckillService seckillService;
 
     @RequestMapping(value = "/to_list",produces = "text/html")
     @ResponseBody
@@ -105,34 +111,12 @@ public class GoodListController {
         GoodsVo goods = goodsService.getGoodsByGoodsId(goodsId);
         model.addAttribute("goods",goods);
 
-        //获取秒杀的状态时间和系统现在的时间
-        long startDate = goods.getStartDate().getTime();
-        long endDate = goods.getEndDate().getTime();
-        long now = System.currentTimeMillis();
+        List<Integer> remainSecondAndStatus = new ArrayList<>();
+        remainSecondAndStatus = getMiaoshaState(goods);
 
-        //秒杀状态 0： 秒杀未开始  1：秒杀进行中 2：秒杀结束
-        int miaoshaStatus = 0;
-        // 秒杀剩余时间
-        int remainSecond = 0;
-
-        //未开始
-        if (now < startDate){
-            miaoshaStatus = 0;
-            remainSecond = (int)((startDate - now) / 1000);
-        }
-        //秒杀已经结束
-        else if (now > endDate){
-            miaoshaStatus = 2;
-            remainSecond = -1;
-        }
-        //秒杀进行中
-        else {
-            miaoshaStatus = 1;
-            remainSecond =  0;
-        }
         //将秒杀的状态信息传给前端页面
-        model.addAttribute("seckillStatus",miaoshaStatus);
-        model.addAttribute("remainSeconds",remainSecond);
+        model.addAttribute("seckillStatus",remainSecondAndStatus.get(0));
+        model.addAttribute("remainSeconds",remainSecondAndStatus.get(1));
 
         //渲染html
         WebContext webContext = new WebContext(request,response,request.getServletContext(),request.getLocale(),model.asMap());
@@ -152,15 +136,39 @@ public class GoodListController {
         //通过商品id查询数据库
         GoodsVo goods = goodsService.getGoodsByGoodsId(goodsId);
 
+        List<Integer> remainSecondAndStatus = new ArrayList<>();
+        remainSecondAndStatus = getMiaoshaState(goods);
+
+        // 服务端封装商品数据直接传递给客户端，而不用绚烂页面
+        GoodsDetailVo goodsDetailVo = new GoodsDetailVo();
+        goodsDetailVo.setGoods(goods);
+        goodsDetailVo.setUser(user);
+        goodsDetailVo.setRemainSeconds(remainSecondAndStatus.get(0));
+        goodsDetailVo.setSeckillStatus(remainSecondAndStatus.get(1));
+
+        return Result.success(goodsDetailVo);
+    }
+
+
+
+    /**
+     * 根据商品获取秒杀的信息，
+     * @param goods 商品
+     * @return List包含的剩余的时间和秒杀的状态
+     */
+    private List<Integer> getMiaoshaState(GoodsVo goods){
+
+        List<Integer> res = new ArrayList<>();
+
         //获取商品的秒杀开始与结束时间
         long startDate = goods.getStartDate().getTime();
         long endDate = goods.getEndDate().getTime();
         long now = System.currentTimeMillis();
 
         //秒杀状态 0： 秒杀未开始  1：秒杀进行中 2：秒杀结束
-        int miaoshaStatus = 0;
+        int miaoshaStatus ;
         // 秒杀剩余时间
-        int remainSecond = 0;
+        int remainSecond ;
 
         //未开始
         if (now < startDate){
@@ -177,14 +185,8 @@ public class GoodListController {
             miaoshaStatus = 1;
             remainSecond =  0;
         }
-
-        // 服务端封装商品数据直接传递给客户端，而不用绚烂页面
-        GoodsDetailVo goodsDetailVo = new GoodsDetailVo();
-        goodsDetailVo.setGoods(goods);
-        goodsDetailVo.setUser(user);
-        goodsDetailVo.setRemainSeconds(remainSecond);
-        goodsDetailVo.setSeckillStatus(miaoshaStatus);
-
-        return Result.success(goodsDetailVo);
+        res.add(remainSecond);
+        res.add(miaoshaStatus);
+        return res;
     }
 }

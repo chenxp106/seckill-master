@@ -1,6 +1,7 @@
 package cn.gdut.controller;
 
 import cn.gdut.controller.result.CodeMsg;
+import cn.gdut.controller.result.Result;
 import cn.gdut.domain.OrderInfo;
 import cn.gdut.domain.SeckillOrder;
 import cn.gdut.domain.SeckillUser;
@@ -15,8 +16,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
+import javax.imageio.ImageIO;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +80,33 @@ public class SeckillController implements InitializingBean {
         model.addAttribute("goods",good);
         return "order_detail";
     }
+
+    @RequestMapping(value = "/verifyCode",method = RequestMethod.GET)
+    @ResponseBody
+    public Result<String> getMiaoshaVertifyCode(HttpServletResponse response, SeckillUser user,
+                                                @RequestParam("goodsId") long goodsId){
+        if (user == null){
+            return Result.error(CodeMsg.SESSION_ERROR);
+        }
+
+        //创建验证码
+        try {
+            BufferedImage image = seckillService.createVerifyCode(user,goodsId);
+            ServletOutputStream out = response.getOutputStream();
+            //将图片写入到resp中
+            ImageIO.write(image,"JPEG",out);
+            out.close();
+            out.flush();
+            return null;
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            return Result.error(CodeMsg.SECKILL_FAIL);
+        }
+
+    }
+
+    @RequestMapping(value = "")
 
     /**
      * 系统初始化时执行
