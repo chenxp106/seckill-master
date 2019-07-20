@@ -72,6 +72,45 @@ public class RedisService {
     }
 
     /**
+     * 删除缓存的用户数据
+     * @param prefix pre
+     * @param key key
+     * @return
+     */
+    public boolean delete(KeyPrefix prefix,String key){
+        Jedis jedis = null;
+        try {
+            jedis = jedisPool.getResource();
+            String realKey = prefix.getPrefix() + key;
+            Long del = jedis.del(realKey);
+            return del > 0;
+        }
+        finally {
+            returnToPool(jedis);
+        }
+
+    }
+
+    /**
+     * 自减操作
+     * @param prefix
+     * @param key
+     * @param <T>
+     * @return
+     */
+    public <T> Long decr(KeyPrefix prefix ,String key){
+        Jedis jedis = null;
+        try {
+            jedis = jedisPool.getResource();
+            String realKey = prefix.getPrefix() + key;
+            return jedis.decr(realKey);
+        }
+        finally {
+            returnToPool(jedis);
+        }
+    }
+
+    /**
      * 将对象转化为json字符串
      * @param value 对象
      * @param <T> 对象的类型

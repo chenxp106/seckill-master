@@ -7,6 +7,8 @@ import cn.gdut.redis.SeckillKeyPrefix;
 import cn.gdut.service.GoodsService;
 import cn.gdut.service.OrderService;
 import cn.gdut.service.SeckillService;
+import cn.gdut.util.MD5Util;
+import cn.gdut.util.UUIDUtil;
 import cn.gdut.vo.GoodsVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -95,16 +97,74 @@ public class SeckillServiceImpl implements SeckillService {
 
     }
 
+    @Override
+    public boolean checkVerifyCode(SeckillUser user, long goodsId, int verifyCode) {
+        if (user == null || goodsId <= 0){
+            return false;
+        }
+
+        //从redis中获取验证码并计算结果
+        Integer oldCode = redisService.get(SeckillKeyPrefix.seckillKeyPrefix,user.getId() + "," + goodsId,Integer.class);
+        if (oldCode != null && verifyCode - oldCode != 0){
+            return false;
+        }
+
+        // 如果校验成功，则将校验码删除
+        redisService.delete(SeckillKeyPrefix.seckillKeyPrefix,user.getId() + ","+goodsId);
+        return true;
+    }
+
+    @Override
+    public String createSeckillPath(SeckillUser user, long goodsId) {
+        if (user == null || goodsId <= 0){
+            return null;
+        }
+
+        //随机生成秒杀地址
+        String path = MD5Util.md5(UUIDUtil.uuid() + "123456");
+        //将生成的秒杀地址存放到redis中，（保证不同的用户商品的秒杀地址不一样的）
+        redisService.set(SeckillKeyPrefix.seckillKeyPrefix,""+user.getId()+"_"+goodsId,path);
+
+        return path;
+    }
+
+    /**
+     * 校验path
+     * @param user
+     * @param goodsId
+     * @param path
+     * @return
+     */
+    @Override
+    public boolean checkPath(SeckillUser user, long goodsId, String path) {
+        if (user == null && path == null){
+            return false;
+        }
+        //从redis中获取秒杀的path变量是否为本次秒杀操作执行前写入redis中的path；
+        String oldPath = redisService.get(SeckillKeyPrefix.seckillKeyPrefix,"" + user.getId()+"_" + goodsId,String.class);
+        return path.equals(oldPath);
+    }
+
+    /**
+     * 生成字符串表达式
+     * @param random 随机数
+     * @return 表达式
+     */
     private String generateVerifyCode(Random random){
         int num1 = random.nextInt(10);
         int num2 = random.nextInt(10);
         int num3 = random.nextInt(10);
         char op1 = ops[random.nextInt(3)];
         char op2 = ops[random.nextInt(3)];
-        String exp = ""+num1 + op1 + num2 + op2 +num3;
+        String exp = "" + num1 + op1 + num2 + op2 + num3;
         return exp;
     }
 
+    /**
+     * 通过条用js模块计算表达式的值
+     * @param exp 表达式
+     * @return int结果
+     */
     private int calc(String exp){
         ScriptEngineManager manager = new ScriptEngineManager();
         ScriptEngine engine = manager.getEngineByName("JavaScript");

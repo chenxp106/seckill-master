@@ -11,6 +11,7 @@ import cn.gdut.service.GoodsService;
 import cn.gdut.service.OrderService;
 import cn.gdut.service.SeckillService;
 import cn.gdut.vo.GoodsVo;
+import com.sun.org.apache.bcel.internal.classfile.Code;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import javax.imageio.ImageIO;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
+import javax.websocket.server.PathParam;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.List;
@@ -81,6 +83,13 @@ public class SeckillController implements InitializingBean {
         return "order_detail";
     }
 
+    /**
+     * 异步请求 $("#")
+     * @param response
+     * @param user
+     * @param goodsId
+     * @return
+     */
     @RequestMapping(value = "/verifyCode",method = RequestMethod.GET)
     @ResponseBody
     public Result<String> getMiaoshaVertifyCode(HttpServletResponse response, SeckillUser user,
@@ -93,7 +102,7 @@ public class SeckillController implements InitializingBean {
         try {
             BufferedImage image = seckillService.createVerifyCode(user,goodsId);
             ServletOutputStream out = response.getOutputStream();
-            //将图片写入到resp中
+            //将图片写入到respon中
             ImageIO.write(image,"JPEG",out);
             out.close();
             out.flush();
@@ -106,13 +115,88 @@ public class SeckillController implements InitializingBean {
 
     }
 
-    @RequestMapping(value = "")
+    /**
+     * 获取秒杀的接口地址
+     * 每一次点解秒杀，都会生成一个随机的秒杀地址返回给客户端
+     * @param model model
+     * @param user 用户
+     * @param goodsId 商品id
+     * @param verifyCode 验证码
+     * @return 被隐藏的接口地址
+     */
+    @RequestMapping(value = "path",method = RequestMethod.GET)
+    @ResponseBody
+    public Result<String> getMiaoshaPath(Model model,
+                                         SeckillUser user,
+                                         @PathParam("goodsId") long goodsId,
+                                         @RequestParam(value = "verifyCode" ,defaultValue = "0") int verifyCode){
+        model.addAttribute("user",user);
+
+        if (user == null){
+            return Result.error(CodeMsg.SESSION_ERROR);
+        }
+
+        //校验验证码
+        boolean check = seckillService.checkVerifyCode(user,goodsId,verifyCode);
+        if (!check){
+            //验证码不正确
+            return Result.error(CodeMsg.REQUEST_ILLEGAL);
+        }
+
+        //验证通过，获取秒杀路径
+        String path = seckillService.createSeckillPath(user, goodsId);
+        return Result.success(path);
+    }
+
+    @RequestMapping(value = "/{path}/do_miaosha_static",method = RequestMethod.POST)
+    @ResponseBody
+    public Result<Integer> doMiaoshaStatic(Model model,SeckillUser user,
+                                           @RequestParam("goodsId") long goodsId,
+                                           @RequestParam("path") String path){
+        model.addAttribute("user",user);
+
+        //如果用户为空，则返回登录页面
+        if (user == null){
+            return Result.error(CodeMsg.SESSION_ERROR);
+        }
+
+        //校验path是否正确
+        boolean checkPath = seckillService.checkPath(user, goodsId, path);
+        if (!checkPath){
+            return Result.error(CodeMsg.REQUEST_ILLEGAL);
+        }
+
+        //通过内存标记，减少对redis的访问，秒杀结束才继续访问redis
+        Boolean over = localOverMap.get(goodsId);
+        if (over){
+            return Result.error(CodeMsg.SECKILL_OVER);
+        }
+
+        //预减库存
+        Long stock = redisService.decr(GoodsKeyPrefix.seckillGoodsStockPrefix,"" + goodsId);
+        if (stock < 0){
+
+            //秒杀结束，标记该商品已经结束
+            localOverMap.put(goodsId,true);
+            return Result.error(CodeMsg.SECKILL_OVER);
+        }
+
+        // 判断重复秒杀
+        SeckillOrder order = orderService.getSeckillOrderByUserAndGoodsId(user.getId(), goodsId);
+        if (order != null){
+            return Result.error(CodeMsg.REPEATE_SECKILL);
+        }
+
+        return Result.success(0);
+    }
+
 
     /**
      * 系统初始化时执行
      * 系统初始化的时候从数据库中将商品信息查询出来。包括秒杀信息和商品的基本信息
      * @throws Exception
      */
+    @RequestMapping(value = "")
     @Override
     public void afterPropertiesSet() throws Exception {
         List<GoodsVo> goods = goodsService.listGoodsVo();
