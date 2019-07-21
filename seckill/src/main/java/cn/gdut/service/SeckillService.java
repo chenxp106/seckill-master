@@ -31,4 +31,6 @@ public interface SeckillService {
     public String createSeckillPath(SeckillUser user,long goodsId);
 
     public boolean checkPath(SeckillUser user,long goodsId,String path);
+
+    public long getSeckillResult(Long userId,long goodsId);
 }

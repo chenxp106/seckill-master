@@ -16,10 +16,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.imageio.ImageIO;
 import javax.servlet.ServletOutputStream;
@@ -152,7 +149,7 @@ public class SeckillController implements InitializingBean {
     @ResponseBody
     public Result<Integer> doMiaoshaStatic(Model model,SeckillUser user,
                                            @RequestParam("goodsId") long goodsId,
-                                           @RequestParam("path") String path){
+                                           @PathVariable("path") String path){
         model.addAttribute("user",user);
 
         //如果用户为空，则返回登录页面
@@ -188,6 +185,21 @@ public class SeckillController implements InitializingBean {
         }
 
         return Result.success(0);
+    }
+
+    @RequestMapping(value = "/result" ,method = RequestMethod.GET)
+    @ResponseBody
+    public Result<Long> miaoshaResult(Model model,
+                                      SeckillUser user,
+                                      @RequestParam("goodsId") long goodsId){
+        model.addAttribute("user",user);
+
+        if (user == null){
+            return Result.error(CodeMsg.SESSION_ERROR);
+        }
+
+        long result = seckillService.getSeckillResult(user.getId(), goodsId);
+        return Result.success(result);
     }
 
 

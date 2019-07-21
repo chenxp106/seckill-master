@@ -110,6 +110,18 @@ public class RedisService {
         }
     }
 
+    public <T> boolean exists(KeyPrefix keyPrefix,String key){
+        Jedis jedis = null;
+        try {
+            jedis = jedisPool.getResource();
+            String realKey = keyPrefix.getPrefix() + key;
+            return jedis.exists(realKey);
+        }
+        finally {
+            returnToPool(jedis);
+        }
+    }
+
     /**
      * 将对象转化为json字符串
      * @param value 对象

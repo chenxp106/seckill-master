@@ -14,6 +14,10 @@ public abstract class BaseKeyPrefix implements KeyPrefix {
         this.prdix = prdix;
     }
 
+    public BaseKeyPrefix(String prefix){
+        this(0,prefix);
+    }
+
     @Override
     public int expireSeconds() {
         return expireSeconds;

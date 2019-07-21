@@ -1,7 +1,9 @@
 package cn.gdut.service.impl;
 
 import cn.gdut.domain.OrderInfo;
+import cn.gdut.domain.SeckillOrder;
 import cn.gdut.domain.SeckillUser;
+import cn.gdut.redis.KeyPrefix;
 import cn.gdut.redis.RedisService;
 import cn.gdut.redis.SeckillKeyPrefix;
 import cn.gdut.service.GoodsService;
@@ -143,6 +145,37 @@ public class SeckillServiceImpl implements SeckillService {
         //从redis中获取秒杀的path变量是否为本次秒杀操作执行前写入redis中的path；
         String oldPath = redisService.get(SeckillKeyPrefix.seckillKeyPrefix,"" + user.getId()+"_" + goodsId,String.class);
         return path.equals(oldPath);
+    }
+
+    /**
+     * 获取秒杀结果
+     * @param userId userId
+     * @param goodsId 商品id
+     * @return
+     */
+    @Override
+    public long getSeckillResult(Long userId, long goodsId) {
+        SeckillOrder order = orderService.getSeckillOrderByUserAndGoodsId(userId, goodsId);
+        // 秒杀成功,返回为订单的编号，大于0
+        if ( order != null){
+            return order.getOrderId();
+        }
+        else {
+            boolean isOver = getGoodsOver(goodsId);
+            // 返回-1，表示没有商品了。秒杀失败
+            if (isOver){
+                return -1;
+            }
+            // 返回0，继续等待
+            else {
+                return 0;
+            }
+        }
+    }
+
+    private boolean getGoodsOver(long goodsId){
+        KeyPrefix k = SeckillKeyPrefix.isGoodsOver;
+        return redisService.exists(k,"" + goodsId);
     }
 
     /**
