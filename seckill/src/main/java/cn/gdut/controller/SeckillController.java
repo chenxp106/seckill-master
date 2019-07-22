@@ -3,6 +3,8 @@ package cn.gdut.controller;
 import cn.gdut.controller.result.CodeMsg;
 import cn.gdut.controller.result.Result;
 import cn.gdut.domain.OrderInfo;
+import cn.gdut.rabbitmq.MQSender;
+import cn.gdut.rabbitmq.SeckillMessage;
 import cn.gdut.domain.SeckillOrder;
 import cn.gdut.domain.SeckillUser;
 import cn.gdut.redis.GoodsKeyPrefix;
@@ -11,7 +13,6 @@ import cn.gdut.service.GoodsService;
 import cn.gdut.service.OrderService;
 import cn.gdut.service.SeckillService;
 import cn.gdut.vo.GoodsVo;
-import com.sun.org.apache.bcel.internal.classfile.Code;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -42,6 +43,9 @@ public class SeckillController implements InitializingBean {
 
     @Autowired
     GoodsService goodsService;
+
+    @Autowired
+    MQSender sender;
 
 
     //用于内存标记，标记库存是否为空，从而减少对redis的访问。
@@ -184,6 +188,13 @@ public class SeckillController implements InitializingBean {
             return Result.error(CodeMsg.REPEATE_SECKILL);
         }
 
+        // 商品有库存且用户为秒杀商品，则将请求放入到MQ，消息队列中。集中进行处理
+        SeckillMessage message = new SeckillMessage();
+        message.setUser(user);
+        message.setGoodsId(goodsId);
+
+        //放入到消息队列中
+        sender.sendMiaoshaMessage(message);
         return Result.success(0);
     }
 
