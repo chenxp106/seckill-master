@@ -63,4 +63,9 @@ public class OrderServiceImpl implements OrderService {
 
         return orderDao.getSeckillOrderByUserAndGoodsId(userId,goodsId);
     }
+
+    @Override
+    public OrderInfo getOrderById(long orderId) {
+        return orderDao.getOrderById(orderId);
+    }
 }

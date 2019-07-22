@@ -19,4 +19,7 @@ public interface OrderDao {
     @Select("SELECT * FROM seckill_order WHERE goods_id = #{goodsId} AND user_id = #{userId}")
     SeckillOrder getSeckillOrderByUserAndGoodsId(@Param("userId") Long userId, @Param("goodsId") long goodsId);
 
+    @Select("select * from order_info where id = #{orderId}")
+    OrderInfo getOrderById(@Param("orderId") long orderId);
+
 }
