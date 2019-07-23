@@ -4,10 +4,13 @@ import cn.gdut.dao.OrderDao;
 import cn.gdut.domain.OrderInfo;
 import cn.gdut.domain.SeckillOrder;
 import cn.gdut.domain.SeckillUser;
+import cn.gdut.redis.OrderKeyPrefix;
+import cn.gdut.redis.RedisService;
 import cn.gdut.service.OrderService;
 import cn.gdut.vo.GoodsVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 
@@ -17,6 +20,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     OrderDao orderDao;
 
+    @Autowired
+    RedisService redisService;
+
     /**
      * 创建订单
      * @param user 秒杀的用户
@@ -24,6 +30,7 @@ public class OrderServiceImpl implements OrderService {
      * @return 订单的详情
      */
     @Override
+    @Transactional
     public OrderInfo createOrder(SeckillUser user, GoodsVo goods) {
 
         OrderInfo orderInfo = new OrderInfo();
@@ -49,6 +56,10 @@ public class OrderServiceImpl implements OrderService {
 
         //将秒杀订单插入到miaoshs_order中
         orderDao.insertSeckillOrder(seckillOrder);
+
+        //将秒杀的信息存到redis中
+        redisService.set(OrderKeyPrefix.getSeckillOrderByUidGid,":" + user.getId() + "_" + goods.getId(),seckillOrder);
+
         return orderInfo;
     }
 
@@ -61,7 +72,19 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public SeckillOrder getSeckillOrderByUserAndGoodsId(Long userId, long goodsId) {
 
-        return orderDao.getSeckillOrderByUserAndGoodsId(userId,goodsId);
+        // 从redis缓存中获取是否下过订单,减少对数据库的访问。
+        SeckillOrder order = redisService.get(OrderKeyPrefix.getSeckillOrderByUidGid, ":" + userId + "_" + goodsId, SeckillOrder.class);
+        if (order != null){
+            return order;
+        }
+
+        //将得到的订单放到redis缓存中
+        SeckillOrder seckillOrderByUserAndGoodsId = orderDao.getSeckillOrderByUserAndGoodsId(userId, goodsId);
+        if (seckillOrderByUserAndGoodsId != null){
+            redisService.set(OrderKeyPrefix.getSeckillOrderByUidGid,":"+ userId + "_" + goodsId,seckillOrderByUserAndGoodsId);
+        }
+
+        return seckillOrderByUserAndGoodsId;
     }
 
     @Override

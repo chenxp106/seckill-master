@@ -14,6 +14,7 @@ import cn.gdut.util.UUIDUtil;
 import cn.gdut.vo.GoodsVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -37,7 +38,7 @@ public class SeckillServiceImpl implements SeckillService {
     private char[] ops = new char[]{'+','-','*'};
 
     /**
-     * 秒杀操作
+     * 秒杀操作 ，增加事物操作
      * 1 减库存
      * 2 将生成的订单写入到miaosha_order表中
      * @param user 秒杀的用户
@@ -45,6 +46,7 @@ public class SeckillServiceImpl implements SeckillService {
      * @return 生成的订单详情
      */
     @Override
+    @Transactional
     public OrderInfo seckill(SeckillUser user, GoodsVo goodsVo) {
         // 减库存
         boolean success = goodsService.reduceStock(goodsVo);
